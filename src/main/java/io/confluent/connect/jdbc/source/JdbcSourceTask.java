@@ -124,7 +124,7 @@ public class JdbcSourceTask extends SourceTask {
       List<Map<String, String>> partitions = new ArrayList<>(tables.size());
       switch (queryMode) {
         case TABLE:
-          log.trace("Starting in TABLE mode");
+          log.error(">>>>> Starting in TABLE mode");
           for (String table : tables) {
             // Find possible partition maps for different offset protocols
             // We need to search by all offset protocol partition keys to support compatibility
@@ -134,13 +134,15 @@ public class JdbcSourceTask extends SourceTask {
           }
           break;
         case QUERY:
-          log.trace("Starting in QUERY mode");
+          log.error(">>>>> Starting in QUERY mode");
           partitions.add(Collections.singletonMap(JdbcSourceConnectorConstants.QUERY_NAME_KEY,
                                                   JdbcSourceConnectorConstants.QUERY_NAME_VALUE));
           break;
         default:
           throw new ConnectException("Unknown query mode: " + queryMode);
       }
+      log.error(">>>>> PARTITIONS SIZE: " + partitions.size());
+      log.error(">>>>> PARTITIONS: " + partitions.toString());
       offsets = context.offsetStorageReader().offsets(partitions);
       log.trace("The partition offsets are {}", offsets);
     }
@@ -342,6 +344,31 @@ public class JdbcSourceTask extends SourceTask {
     }
   }
 
+  protected SourceRecord repeatedIncrements(SourceRecord sourceRecord) {
+    //TODO: proper debug entry
+    log.debug("> CT setting string boolean {}",
+            config.getBoolean(JdbcSourceTaskConfig.INCREMENTING_CHANGE_TRACKING_CONFIG));
+    Map<String, Long> sourceRecordOffset = new HashMap<String, Long>();
+
+    sourceRecord.sourceOffset().forEach((k,v) -> {
+      if (k.toString().equalsIgnoreCase("incrementing")) {
+        log.debug(">>>>>>> subtracting 1 value...");
+        sourceRecordOffset.put(k, (Long)v - 1);
+      } else {
+        log.debug(">>>>>>> ignoring for key {}",k);
+        sourceRecordOffset.put(k,(Long)v);
+      }
+    });
+    long incrementing = sourceRecordOffset.get("incrementing");
+    log.debug(">>>>> Incrementing Offset: {} " + incrementing);
+
+    return new SourceRecord(
+            sourceRecord.sourcePartition(), sourceRecordOffset, sourceRecord.topic(),
+            sourceRecord.kafkaPartition(), sourceRecord.keySchema(), sourceRecord.key(),
+            sourceRecord.valueSchema(), sourceRecord.value(), sourceRecord.timestamp(),
+            sourceRecord.headers());
+  }
+
   @Override
   public List<SourceRecord> poll() throws InterruptedException {
     log.trace("{} Polling for new data");
@@ -372,13 +399,81 @@ public class JdbcSourceTask extends SourceTask {
 
         int batchMaxRows = config.getInt(JdbcSourceTaskConfig.BATCH_MAX_ROWS_CONFIG);
         boolean hadNext = true;
+
+        String mode = config.getString(JdbcSourceTaskConfig.MODE_CONFIG);
+        boolean repeatedIncrements = config.getBoolean(
+                JdbcSourceTaskConfig.INCREMENTING_CHANGE_TRACKING_CONFIG);
+        boolean isChangeTrackingIncrementing =
+                (mode.equals(JdbcSourceTaskConfig.MODE_INCREMENTING)
+                        || mode.endsWith(JdbcSourceTaskConfig.MODE_TIMESTAMP_INCREMENTING))
+                        && repeatedIncrements;
+
         while (results.size() < batchMaxRows && (hadNext = querier.next())) {
-          results.add(querier.extractRecord());
+          SourceRecord sr = querier.extractRecord();
+
+          if (isChangeTrackingIncrementing && hadNext) {
+            log.debug("> CT setting string boolean {}",
+                    config.getBoolean(JdbcSourceTaskConfig.INCREMENTING_CHANGE_TRACKING_CONFIG));
+            log.debug(">> results data size {}, maxRows {}, hadNext {}",
+                    results.size(),
+                    batchMaxRows,
+                    hadNext);
+            log.debug(">>> Offset: {}", sr.sourceOffset().toString());
+            Map<String, Long> a = new HashMap<String, Long>();// sr.sourceOffset();
+
+            sr.sourceOffset().forEach((k,v) -> {
+              if (k.toString().equalsIgnoreCase("incrementing")) {
+                log.debug(">>>>>>> subtracting 1 value...");
+                a.put(k, (Long)v - 1);
+              } else {
+                log.debug(">>>>>>> ignoring for key {}",k);
+                a.put(k,(Long)v);
+              }
+            });
+            long incrementing = a.get("incrementing");
+            log.debug(">>>>> Incrementing Offset: {} " + incrementing);
+
+            SourceRecord parsedSr = new SourceRecord(
+                    sr.sourcePartition(), a, sr.topic(),
+                    sr.kafkaPartition(), sr.keySchema(), sr.key(),
+                    sr.valueSchema(), sr.value(), sr.timestamp(), sr.headers());
+            results.add(parsedSr);
+          } else {
+            results.add(sr);
+          }
         }
 
         if (!hadNext) {
           // If we finished processing the results from the current query, we can reset and send
           // the querier to the tail of the queue
+//          log.error("||| !hadNext");  TODO: lifecycle test
+          if (isChangeTrackingIncrementing && results.size() > 0) {
+            log.error(">>>>>>> > finished processing results in resultSet");
+            int lastPosition = results.size() - 1;
+            SourceRecord lastEntry = results.get(lastPosition);
+            Map<String, ?> so = lastEntry.sourceOffset();
+            long incrementing = (long) so.get("incrementing");
+            log.debug(">>>>>>> >> last SourceOffset increment: {}", incrementing);
+
+            Map<String, Long> newSo = new HashMap<String, Long>();
+            so.forEach((k,v) -> {
+              if (k.toString().equalsIgnoreCase("incrementing")) {
+                newSo.put(k, ((Long)v + 1));
+              } else {
+                newSo.put(k,(Long)v);
+              }
+            });
+            results.remove(lastPosition);
+            results.add(
+                    new SourceRecord(lastEntry.sourcePartition(), newSo, lastEntry.topic(),
+                      lastEntry.kafkaPartition(), lastEntry.keySchema(), lastEntry.key(),
+                      lastEntry.valueSchema(), lastEntry.value(),
+                      lastEntry.timestamp(), lastEntry.headers()));
+
+            long incrementing2 = (Long)results.get(lastPosition)
+                    .sourceOffset().get("incrementing");
+            log.debug(">>>>>>> >> last SourceOffset increment: {}", incrementing2);
+          }
           resetAndRequeueHead(querier);
         }
 
