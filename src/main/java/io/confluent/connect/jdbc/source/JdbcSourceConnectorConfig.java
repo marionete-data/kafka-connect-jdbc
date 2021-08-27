@@ -170,6 +170,14 @@ public class JdbcSourceConnectorConfig extends AbstractConfig {
   public static final String INCREMENTING_COLUMN_NAME_DEFAULT = "";
   private static final String INCREMENTING_COLUMN_NAME_DISPLAY = "Incrementing Column Name";
 
+  public static final String INCREMENTING_CHANGE_TRACKING_CONFIG =
+          "incrementing.repeated.entries";
+  public static final String INCREMENTING_CHANGE_TRACKING_DOC =
+          "";//TODO
+  public static final boolean INCREMENTING_CHANGE_TRACKING_DEFAULT = false;
+  public static final String INCREMENTING_CHANGE_TRACKING_DISPLAY =
+          "Handle repeated monotonically increasing entries";
+
   public static final String TIMESTAMP_COLUMN_NAME_CONFIG = "timestamp.column.name";
   private static final String TIMESTAMP_COLUMN_NAME_DOC =
       "Comma separated list of one or more timestamp columns to detect new or modified rows using "
@@ -547,7 +555,18 @@ public class JdbcSourceConnectorConfig extends AbstractConfig {
         MODE_GROUP,
         ++orderInGroup,
         Width.MEDIUM,
-        QUERY_SUFFIX_DISPLAY);
+        QUERY_SUFFIX_DISPLAY
+    ).define(
+            INCREMENTING_CHANGE_TRACKING_CONFIG,
+        Type.BOOLEAN,
+            INCREMENTING_CHANGE_TRACKING_DEFAULT,
+        Importance.LOW,
+            INCREMENTING_CHANGE_TRACKING_DOC,
+        MODE_GROUP,
+        ++orderInGroup,
+        Width.SHORT,
+            INCREMENTING_CHANGE_TRACKING_DISPLAY
+    );
   }
 
   private static final void addConnectorOptions(ConfigDef config) {

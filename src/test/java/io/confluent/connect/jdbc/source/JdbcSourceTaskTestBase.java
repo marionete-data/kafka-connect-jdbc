@@ -104,6 +104,16 @@ public class JdbcSourceTaskTestBase {
     return props;
   }
 
+  protected Map<String, String> singleTableMultiIncrementsConfig(boolean repeatingIncrements) {
+    Map<String, String> props = new HashMap<>();
+    props.put(JdbcSourceConnectorConfig.CONNECTION_URL_CONFIG, db.getUrl());
+    props.put(JdbcSourceTaskConfig.TABLES_CONFIG, SINGLE_TABLE_NAME);
+    props.put(JdbcSourceTaskConfig.TOPIC_PREFIX_CONFIG, TOPIC_PREFIX);
+    props.put(JdbcSourceConnectorConfig.MODE_CONFIG, JdbcSourceConnectorConfig.MODE_INCREMENTING);
+    props.put(JdbcSourceConnectorConfig.INCREMENTING_CHANGE_TRACKING_CONFIG, "true");
+    return props;
+  }
+
   protected Map<String, String> singleTableWithTimezoneConfig(
       boolean completeMapping,
       TimeZone tz) {

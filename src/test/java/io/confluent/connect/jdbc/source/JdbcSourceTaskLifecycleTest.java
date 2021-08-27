@@ -308,6 +308,38 @@ public class JdbcSourceTaskLifecycleTest extends JdbcSourceTaskTestBase {
     assertThat(e.getMessage(), containsString("not_existing_table"));
   }
 
+  //  @Test :TODO
+  public void testRepeatingIncrementsEmptyPoll() throws Exception {
+//    db.createTable(SINGLE_TABLE_NAME, "id", "INT");
+//    db.createTable(SECOND_TABLE_NAME, "id", "INT");
+//
+//    task.start(twoTableConfig());
+//
+//    assertNull(task.poll());
+
+    // Here we just want to verify behavior of the poll method, not any loading of data, so we
+    // specifically want an empty
+    db.createTable(SINGLE_TABLE_NAME, "id", "INT");
+    // Need data or poll() never returns
+//    db.insert(SINGLE_TABLE_NAME, "id", 1);
+
+//    long startTime = time.milliseconds();
+
+    task.start(singleTableMultiIncrementsConfig(true));
+
+    // First poll should happen immediately
+//    task.poll();
+//    assertEquals(startTime, time.milliseconds());
+
+    // Subsequent polls have to wait for timeout
+    System.out.println("||| WE ARE POLLING HERE GUYS");
+    task.poll();
+//    assertEquals(startTime + JdbcSourceConnectorConfig.POLL_INTERVAL_MS_DEFAULT,
+//            time.milliseconds());
+
+    task.stop();
+  }
+
   private static void validatePollResultTable(List<SourceRecord> records,
                                               int expected, String table) {
     assertEquals(expected, records.size());
