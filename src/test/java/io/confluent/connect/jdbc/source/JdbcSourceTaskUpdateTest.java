@@ -255,8 +255,7 @@ public class JdbcSourceTaskUpdateTest extends JdbcSourceTaskTestBase {
     PowerMock.verifyAll();
   }
 
-  //TODO XDAVN: fails on my machine
-  //@Test
+  @Test
   public void testTimestampWithDelay() throws Exception {
     expectInitializeNoOffsets(Arrays.asList(
         SINGLE_TABLE_PARTITION_WITH_VERSION,
@@ -886,16 +885,16 @@ public class JdbcSourceTaskUpdateTest extends JdbcSourceTaskTestBase {
         db.insert(SINGLE_TABLE_NAME, "id", 1);
 
         startTask(null, "id", null, true);
-        // verifyIncrementingFirstPoll(TOPIC_PREFIX + SINGLE_TABLE_NAME);
+        verifyIncrementingFirstPoll(TOPIC_PREFIX + SINGLE_TABLE_NAME);
 
         // Adding records should result in only those records during the next poll()
         db.insert(SINGLE_TABLE_NAME, "id", 2);
         db.insert(SINGLE_TABLE_NAME, "id", 3);
         db.close();
 
-        verifyPoll(3, "id", Arrays.asList(1, 2, 3), false, true, false, true, TOPIC_PREFIX + SINGLE_TABLE_NAME);
+        verifyPoll(2, "id", Arrays.asList(2, 3), false, true, false, true, TOPIC_PREFIX + SINGLE_TABLE_NAME);
 
-        //verifyOffsets!, i.e.: sourceOffset{incrementing=N} <- still need an explicit test for this one...
+        //TODO: verifyOffsets!, i.e.: sourceOffset{incrementing=N} <- still need an explicit test for this one...
 
         PowerMock.verifyAll();
   }
@@ -1031,10 +1030,8 @@ public class JdbcSourceTaskUpdateTest extends JdbcSourceTaskTestBase {
     int count = 0;
     while(records == null && count++ < 5) {
       records = task.poll();
-      Thread.sleep(1000);// Fails 90% of the time on my computer at 500...
+      Thread.sleep(500);
     }
-    if (numRecords == 4)
-      System.out.println(">>> [RECORDS]" + records.toString());
     assertNotNull(records);
     assertEquals(numRecords, records.size());
 
@@ -1069,7 +1066,6 @@ public class JdbcSourceTaskUpdateTest extends JdbcSourceTaskTestBase {
   private <T> Map<T, Integer> countInts(List<SourceRecord> records, Field field, String fieldName) {
     Map<T, Integer> result = new HashMap<>();
     for (SourceRecord record : records) {
-
       T extracted;
       switch (field) {
         case KEY:

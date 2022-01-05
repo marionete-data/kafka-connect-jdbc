@@ -144,8 +144,6 @@ public class JdbcSourceTask extends SourceTask {
         default:
           throw new ConnectException("Unknown query mode: " + queryMode);
       }
-      log.error(">>>>> PARTITIONS SIZE: " + partitions.size());
-      log.error(">>>>> PARTITIONS: " + partitions.toString());
       offsets = context.offsetStorageReader().offsets(partitions);
       log.trace("The partition offsets are {}", offsets);
     }
@@ -356,7 +354,7 @@ public class JdbcSourceTask extends SourceTask {
     //TODO: proper debug entry
     log.debug("> CT setting string boolean {}",
             config.getBoolean(JdbcSourceTaskConfig.INCREMENTING_CHANGE_TRACKING_CONFIG));
-    Map<String, Long> sourceRecordOffset = new HashMap<String, Long>();
+    Map<String, Long> sourceRecordOffset = new HashMap<>();
 
     sourceRecord.sourceOffset().forEach((k,v) -> {
       if (k.toString().equalsIgnoreCase("incrementing")) {
@@ -368,7 +366,7 @@ public class JdbcSourceTask extends SourceTask {
       }
     });
     long incrementing = sourceRecordOffset.get("incrementing");
-    log.debug(">>>>> Incrementing Offset: {} " + incrementing);
+    log.debug(">>>>> Incrementing Offset: {} ", incrementing);
 
     return new SourceRecord(
             sourceRecord.sourcePartition(), sourceRecordOffset, sourceRecord.topic(),
