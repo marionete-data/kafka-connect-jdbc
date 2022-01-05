@@ -144,6 +144,11 @@ public class JdbcSourceTask extends SourceTask {
         default:
           throw new ConnectException("Unknown query mode: " + queryMode);
       }
+      log.error("Partitions {}", partitions);
+      log.error("Partitions {}", partitions.size());
+      log.error("Partitions {}", partitions.toString());
+      log.error("Context {}", context.toString());
+      log.error("storage reader {}", context.offsetStorageReader());
       offsets = context.offsetStorageReader().offsets(partitions);
       log.trace("The partition offsets are {}", offsets);
     }
@@ -372,7 +377,7 @@ public class JdbcSourceTask extends SourceTask {
             sourceRecord.headers());
   }
 
-  protected List<SourceRecord> updateLastFieldIncrement(List<SourceRecord> results){
+  protected List<SourceRecord> updateLastFieldIncrement(List<SourceRecord> results) {
     log.debug("Running Increment logic updates");
     int lastPosition = results.size() - 1;
     SourceRecord lastEntry = results.get(lastPosition);
@@ -456,8 +461,9 @@ public class JdbcSourceTask extends SourceTask {
           // the querier to the tail of the queue
 
           //log.error("||| !hadNext");  TODO: lifecycle test
-          if (isChangeTrackingIncrementing && results.size() > 0)
+          if (isChangeTrackingIncrementing && results.size() > 0) {
             updateLastFieldIncrement(results);
+          }
           resetAndRequeueHead(querier, false);
         }
 
