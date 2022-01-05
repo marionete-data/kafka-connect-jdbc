@@ -454,7 +454,8 @@ public class JdbcSourceTask extends SourceTask {
         if (!hadNext) {
           // If we finished processing the results from the current query, we can reset and send
           // the querier to the tail of the queue
-//          log.error("||| !hadNext");  TODO: lifecycle test
+
+          //log.error("||| !hadNext");  TODO: lifecycle test
           if (isChangeTrackingIncrementing && results.size() > 0) {
             log.error(">>>>>>> > finished processing results in resultSet");
             int lastPosition = results.size() - 1;
